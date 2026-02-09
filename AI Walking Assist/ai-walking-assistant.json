@@ -1,0 +1,272 @@
+{
+  "name": "Ai Walking assisstant",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 5
+            },
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -464,
+        0
+      ],
+      "id": "b9cea968-f32d-4e65-a00b-2bc4182fe7db",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama3:latest\",\n  \"prompt\": \"Write a professional and friendly morning walking recommendation email.\\n\\nAddress the user by name: {{ $json.userName }}.\\n\\nFollow this structure exactly:\\n\\n1. Greet the user by name.\\n2. One short introductory sentence.\\n3. Show the walk details, each on a separate line, in the following order:\\n   - Weather\\n   - Trail name\\n   - Distance\\n   - Estimated time\\n   - Elevation\\n   - Shade level\\n4. One short sentence explaining why this trail fits today.\\n5. One calm, positive closing sentence.\\n\\nUse the following data:\\nWeather: {{ $json.weatherSummary }}, {{ $json.temperature }}°C\\nTrail name: {{ $json.Name }}\\nDistance: {{ $json.Miles }} miles\\nEstimated time: {{ $json.Time }}\\nElevation: {{ $json.Elevation }}\\nShade level: {{ $json['Shade Level'] }}\\n\\nRules:\\n- Keep the email under 130 words\\n- Use simple, professional language\\n- Do NOT mention AI, automation, or models\\n- Do NOT use emojis\\n- Use short paragraphs\\n\\nOutput only the email body text.\",\n  \"stream\": false\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        608,
+        0
+      ],
+      "id": "9dda8004-c8c0-4e9a-b4b6-cdf7724a4beb",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "cityName": "Berlin, DE"
+      },
+      "type": "n8n-nodes-base.openWeatherMap",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        0
+      ],
+      "id": "3b73c608-d4e1-45af-afc6-02aa5728d804",
+      "name": "OpenWeatherMap",
+      "credentials": {
+        "openWeatherMapApi": {
+          "id": "KZrHV289QXEJpgVi",
+          "name": "OpenWeatherMap account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "16L46YMjuANTPLFoSQYR9D1Kqxy_KsmCXaHHdgJTDC5s",
+          "mode": "list",
+          "cachedResultName": "Trails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/16L46YMjuANTPLFoSQYR9D1Kqxy_KsmCXaHHdgJTDC5s/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Trails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/16L46YMjuANTPLFoSQYR9D1Kqxy_KsmCXaHHdgJTDC5s/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -48,
+        0
+      ],
+      "id": "4ed22949-90ff-4558-8733-2388126acd93",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "OGb75sSMU0OSp0LB",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "suhasiniramesh1911@gmail.com",
+        "subject": "Hello",
+        "message": "={{ $json.response }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        784,
+        0
+      ],
+      "id": "cb6b97f7-683f-4419-a3ff-20b78b760180",
+      "name": "Send a message",
+      "webhookId": "aed58d09-fd3a-49e1-898c-27ebd340e5ed",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "OEhOqmuqeKswCHRS",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get input data\nconst weather = $json.weather?.[0]?.main || 'Clear';\nconst temperature = $json.main?.temp || 15;\n\n// Trails from Google Sheets\nconst trails = items.map(item => item.json);\n\n// Simple rule-based selection\nlet selectedTrail;\n\nif (weather === 'Rain') {\n  selectedTrail = trails.find(t => Number(t.Miles) <= 2) || trails[0];\n} else {\n  selectedTrail = trails.find(t => Number(t.Miles) <= 4) || trails[0];\n}\n\n// Return ONE item only\nreturn [\n  {\n    json: {\n      weatherSummary: weather,\n      temperature,\n      ...selectedTrail\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        128,
+        0
+      ],
+      "id": "1258d4da-0604-4839-a3fe-afa85453ca9f",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "92a0217f-c998-42d4-8b37-76d1020bf552",
+              "name": "userName",
+              "value": "Suhasini",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        368,
+        0
+      ],
+      "id": "af8c7631-30ab-4ccc-a7c0-173e116959a5",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "public": true,
+        "availableInChat": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -384,
+        -128
+      ],
+      "id": "42ed50d8-ff32-4f84-8405-19a957d3c229",
+      "name": "When chat message received",
+      "webhookId": "d49a732c-e831-44e3-b3ce-8331e21383c0",
+      "disabled": true
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "OpenWeatherMap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenWeatherMap": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        []
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "3ab1f07f-9096-42fc-b608-ea4bc0f2a612",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "87a1ec706580ff004c2ffd19e82325bdae3dcc21774a1b1424eb0883e415ab34"
+  },
+  "id": "wj0aecazMrV8RGiK",
+  "tags": []
+}

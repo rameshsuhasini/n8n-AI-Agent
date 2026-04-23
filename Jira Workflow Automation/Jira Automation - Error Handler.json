@@ -1,0 +1,67 @@
+{
+  "name": "Jira Automation - Error Handler",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        16
+      ],
+      "id": "734bab01-a1dd-4faf-8f9d-a7127c2393c4",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "sendTo": "suhasiniramesh1911@gmail.com",
+        "subject": "=Jira Automation Failed - {{ $json.execution.lastNodeExecuted }}",
+        "emailType": "text",
+        "message": "={{ \"Workflow: \" + $json.workflow.name + \"\\n\\nFailed at node: \" + $json.execution.lastNodeExecuted + \"\\n\\nError: \" + $json.execution.error.message + \"\\n\\nCheck it here: \" + $json.execution.url }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -80,
+        16
+      ],
+      "id": "ad84b1b0-1882-4cb3-ba12-3e1e33bfa44c",
+      "name": "Send a message",
+      "webhookId": "1373cbc5-4328-4fbb-84aa-98368c2e22f8",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "OEhOqmuqeKswCHRS",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "a51120d3-248f-482d-b303-4e47cfe3f093",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "87a1ec706580ff004c2ffd19e82325bdae3dcc21774a1b1424eb0883e415ab34"
+  },
+  "id": "GE3U_EuaiO6UvhkuvzFxA",
+  "tags": []
+}

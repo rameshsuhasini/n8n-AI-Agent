@@ -1,0 +1,132 @@
+{
+  "name": "Jira Daily Digest",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -432,
+        0
+      ],
+      "id": "6a72bbd2-1f25-4af4-9b97-bf69e9f6167a",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 20,
+        "options": {
+          "jql": "project=DEV ORDER BY updated DESC"
+        }
+      },
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        0
+      ],
+      "id": "9ec1dbd6-fd12-466c-9658-88e88b65debc",
+      "name": "Get Updated Tickets",
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "SivgZaRfqUbCDk3p",
+          "name": "Jira SW Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const issues = $input.all();\nconst inProgress = issues.filter(i => i.json.fields.status.name === 'In Progress');\nconst inReview = issues.filter(i => i.json.fields.status.name === 'In Review');\nconst done = issues.filter(i => i.json.fields.status.name === 'Done');\nconst todo = issues.filter(i => i.json.fields.status.name === 'To Do');\n\nconst formatList = (list) => list.length === 0\n  ? `<p style=\"color:#888;margin:4px 0;\">None</p>`\n  : list.map(i => `<p style=\"margin:4px 0;\">• <strong>${i.json.key}</strong>: ${i.json.fields.summary}</p>`).join('');\n\nconst section = (emoji, title, color, count, list) => `\n  <div style=\"margin-bottom:24px;\">\n    <div style=\"background:${color};padding:8px 14px;border-radius:6px;display:inline-block;margin-bottom:8px;\">\n      <strong style=\"color:white;\">${emoji} ${title} (${count})</strong>\n    </div>\n    <div style=\"padding-left:8px;\">${formatList(list)}</div>\n  </div>`;\n\nconst digest = `\n<div style=\"font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;\">\n  <h2 style=\"border-bottom:2px solid #eee;padding-bottom:12px;color:#1a1a1a;\">\n    📋 Daily Jira Digest\n  </h2>\n  <p style=\"color:#555;margin-bottom:24px;\">\n    📅 ${new Date().toDateString()} &nbsp;|&nbsp; Project: <strong>WhatToCookApp</strong>\n  </p>\n\n  ${section('🔨', 'In Progress', '#0052cc', inProgress.length, inProgress)}\n  ${section('🔁', 'In Review', '#6554c0', inReview.length, inReview)}\n  ${section('✅', 'Done', '#00875a', done.length, done)}\n  ${section('📋', 'To Do', '#505f79', todo.length, todo)}\n\n  <p style=\"color:#aaa;font-size:12px;border-top:1px solid #eee;padding-top:12px;margin-top:8px;\">\n    Sent automatically via n8n\n  </p>\n</div>`;\n\nreturn [{ json: { \n  digest,\n  subject: \"Daily Jira Digest - \" + new Date().toDateString()\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        0
+      ],
+      "id": "a3d26de4-ba30-4cd0-b9c5-1404a7024484",
+      "name": "Format Digest"
+    },
+    {
+      "parameters": {
+        "sendTo": "suhasiniramesh1911@gmail.com",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.digest }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        192,
+        0
+      ],
+      "id": "6da1f261-06c4-427f-9c57-d355bf23fd9f",
+      "name": "Send a message",
+      "webhookId": "440a623d-9fe0-4378-aa4f-6243ef165233",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "OEhOqmuqeKswCHRS",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Updated Tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Updated Tickets": {
+      "main": [
+        [
+          {
+            "node": "Format Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Digest": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "33ec6699-0ab9-4288-8b69-b0f4a57fce05",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "87a1ec706580ff004c2ffd19e82325bdae3dcc21774a1b1424eb0883e415ab34"
+  },
+  "id": "sP1emg7c239nzT4-h7Ma8",
+  "tags": []
+}

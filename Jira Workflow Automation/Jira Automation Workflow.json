@@ -1,0 +1,757 @@
+{
+  "name": "Jira Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ ({ \"model\": \"claude-haiku-4-5-20251001\", \"max_tokens\": 200, \"messages\": [{ \"role\": \"user\", \"content\": $json.prompt }] }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        240,
+        -240
+      ],
+      "id": "82cd4d2a-22b6-42dc-a54d-9780dbde52a9",
+      "name": "HTTP Request",
+      "retryOnFail": true,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "g31NPLN4ud9nhAp0",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "resource": "issueComment",
+        "issueKey": "={{$json.jiraId}}",
+        "comment": "=📝 Summary:\n{{$json.aiSummary}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        560,
+        -240
+      ],
+      "id": "8954c735-e990-4215-b939-419427c4533d",
+      "name": "Add a comment",
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "SivgZaRfqUbCDk3p",
+          "name": "Jira SW Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check if Claude API failed\nconst claudeFailed = $json.error !== undefined || !$json.content;\n\nlet aiSummary;\nif (claudeFailed) {\n  // Fallback — use raw commit message\n  const original = $('Skip if Duplicate').first()?.json || {};\n  aiSummary = original.commitMessage || \"No summary available\";\n} else {\n  aiSummary = $json.content?.[0]?.text || \"No summary available\";\n}\n\nconst original = $('Skip if Duplicate').first()?.json || {};\n\nreturn [{\n  jiraId: original.jiraId,\n  author: original.author,\n  timestamp: original.timestamp,\n  url: original.url,\n  commitMessage: original.commitMessage,\n  aiSummary: aiSummary,\n  eventType: original.eventType\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        -240
+      ],
+      "id": "a60fa966-8e1e-4fb3-972b-e94593281ced",
+      "name": "Merge Claude Response"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b94efd7e-f4a7-4277-ba1d-bc0ad2116769",
+              "leftValue": "=={{ $json.jiraId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -176,
+        -240
+      ],
+      "id": "6bf40ede-64c5-45ea-bfdd-11eca2402b4d",
+      "name": "Has Jira ID?"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.headers['x-github-event'] }}",
+                    "rightValue": "push",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "617c634a-26c3-4808-bcca-7d0863000428"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "60debcf6-2a27-4fab-9a4e-6ad3d71e8a3d",
+                    "leftValue": "={{ $json.headers['x-github-event'] }}",
+                    "rightValue": "pull_request",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "67d89f6f-284e-4e84-a95f-748b3f687d2c",
+                    "leftValue": "={{ $json.headers['x-github-event'] }}",
+                    "rightValue": "create",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -1584,
+        -288
+      ],
+      "id": "fbababbb-ee59-4feb-93b3-61a9157ab7fc",
+      "name": "Route by Event"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json.body || $json;\nconst pr = data.pull_request || {};\nconst action = data.action || '';\nconst branch = pr.head?.ref || '';\nconst jiraPattern = /([A-Z]+-\\d+)/g;\nconst sources = [branch, pr.title || '', pr.body || ''].join(' ');\nconst tickets = [...new Set(sources.match(jiraPattern) || [])];\n\nif (tickets.length === 0) return [];\n\nconst merged = pr.merged || false;\nlet eventType = 'pr_opened';\nif (action === 'closed' && merged) eventType = 'pr_merged';\nelse if (action === 'closed' && !merged) return [];\n\nreturn tickets.map(id => ({ json: {\n  jiraId: id,\n  commitMessage: pr.title || '',\n  author: pr.user?.login || 'Unknown',\n  timestamp: new Date().toISOString(),\n  url: pr.html_url || '',\n  eventType,\n  repoName: data.repository?.name || '',\n  prNumber: pr.number || null\n}}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1280,
+        -240
+      ],
+      "id": "a4280865-e761-4e02-9987-a7b5016a544b",
+      "name": "Extract from PR"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json.body || $json;\nconst message = data.head_commit?.message || \"\";\nconst ref = data.ref || \"\";\nconst before = data.before || \"\";\nconst isBranchCreation = before === \"0000000000000000000000000000000000000000\";\nconst branchName = ref.replace(\"refs/heads/\", \"\");\nconst cleanMessage = message.split(\"Co-Authored-By\")[0].trim();\n\n// Skip merge commits — already handled by the pull_request event\nif (cleanMessage.startsWith(\"Merge pull request\")) {\n  return [];\n}\n\nif (isBranchCreation) {\n  const jiraId = branchName.match(/[A-Z]+-\\d+/)?.[0] || null;\n  return [{\n    jiraId: jiraId,\n    commitMessage: `Branch created: ${branchName}`,\n    author: data.sender?.login || data.pusher?.name || \"Unknown\",\n    timestamp: new Date().toISOString(),\n    url: data.repository?.html_url || \"\",\n    eventType: \"branch_created\"\n  }];\n}\n\nconst jiraId = cleanMessage.match(/[A-Z]+-\\d+/)?.[0] || null;\nreturn [{\n  jiraId: jiraId,\n  commitMessage: cleanMessage,\n  author: data.head_commit?.author?.name || \"Unknown\",\n  timestamp: data.head_commit?.timestamp || \"\",\n  url: data.head_commit?.url || \"\",\n  eventType: \"push\"\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1280,
+        -384
+      ],
+      "id": "28742c7a-55fc-49c4-9e0a-595c51099101",
+      "name": "Extract from Push"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json.body || $json;\nif (data.ref_type !== 'branch') return [];\nconst branch = data.ref || '';\nconst jiraPattern = /([A-Z]+-\\d+)/g;\nconst tickets = [...new Set(branch.match(jiraPattern) || [])];\nif (tickets.length === 0) return [];\nreturn tickets.map(id => ({ json: {\n  jiraId: id,\n  commitMessage: `Branch created: ${branch}`,\n  author: data.sender?.login || 'Unknown',\n  timestamp: new Date().toISOString(),\n  url: data.repository?.html_url || '',\n  eventType: 'branch_created'\n}}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1280,
+        -96
+      ],
+      "id": "2c6dc2ac-2f45-4b1e-8d0b-f0252a57000f",
+      "name": "Extract from Branch"
+    },
+    {
+      "parameters": {
+        "jsCode": "const original = $('Merge Claude Response').item.json;\nconst eventType = original.eventType || 'push';\n\nconst transitionMap = {\n  push: '21',\n  branch_created: '21',\n  pr_opened: '32',\n  pr_merged: '31'\n};\n\nreturn [{ json: {\n  jiraId: original.jiraId,\n  author: original.author,\n  eventType: eventType,\n  transitionId: transitionMap[eventType] || null\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        -256
+      ],
+      "id": "4cfd86ae-9c89-478f-b83b-1b1efc43dc61",
+      "name": "Pick Transition"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "08a150fc-5776-4c51-914d-44fa97facaa9",
+              "leftValue": "=={{ $json.transitionId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        848,
+        -256
+      ],
+      "id": "170c74be-8a60-4a65-81f0-8729ca83201a",
+      "name": "Has Transition?"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "github-jira",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1632,
+        -496
+      ],
+      "id": "7c89cc5d-e4f7-45ba-9f77-dc402fe6904d",
+      "name": "Github Webhook",
+      "webhookId": "e53ac616-ab37-4217-a240-cf86d92b9ea1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e06b27c7-1266-4aab-85f8-30c1921a4799",
+              "name": "prompt",
+              "value": "=={{ \"You are a technical project assistant. Write a short, professional Jira comment (max 3 sentences) summarizing this code change.\\n\\nJira Ticket ID: \" + $json.jiraId + \"\\nAuthor: \" + $json.author + \"\\nEvent: \" + ($json.eventType || \"push\") + \"\\nCommit message: \" + $json.commitMessage + \"\\n\\nFocus on what changed and why. Be specific. No fluff.\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        96,
+        -240
+      ],
+      "id": "dfc1db58-86ce-4632-90dc-5ef433dbc8bf",
+      "name": "Comment Summarize"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "issueKey": "={{ $json.jiraId }}",
+        "updateFields": {
+          "statusId": {
+            "__rl": true,
+            "value": "={{ $json.transitionId }}",
+            "mode": "id"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        1056,
+        -352
+      ],
+      "id": "53c9a205-0f17-4601-ab27-282a9ab4673f",
+      "name": "Update an issue",
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "SivgZaRfqUbCDk3p",
+          "name": "Jira SW Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const comments = $input.all();\nconst original = $('Has Jira ID?').item.json;\n\nif (comments.length === 0) {\n  return [{ json: { ...original, isDuplicate: false } }];\n}\n\nconst lastComment = comments[0].json;\nconst lastTime = new Date(lastComment.created).getTime();\nconst now = new Date().getTime();\nconst minutesSinceLastComment = (now - lastTime) / 1000 / 60;\n\nreturn [{ json: { \n  ...original,\n  isDuplicate: minutesSinceLastComment < 10\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -176,
+        -48
+      ],
+      "id": "538ca12e-e5c5-49e4-8b6e-596da8ef45a1",
+      "name": "is Duplicate?"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "67b606ff-f30a-4c56-8d01-505749dc45fd",
+              "leftValue": "={{ $json.isDuplicate }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -32,
+        -48
+      ],
+      "id": "d334ba67-e63e-4bf2-be43-c52d2aa38a18",
+      "name": "Skip if Duplicate"
+    },
+    {
+      "parameters": {
+        "resource": "issueComment",
+        "operation": "getAll",
+        "issueKey": "={{ $json.jiraId }}",
+        "limit": 1,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        -48
+      ],
+      "id": "f49ed1c3-5478-4a0e-a41f-87b2a8716c4d",
+      "name": "Get Recent Comments",
+      "alwaysOutputData": true,
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "SivgZaRfqUbCDk3p",
+          "name": "Jira SW Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://api.github.com/repos/rameshsuhasini/{{ $json.repoName }}/pulls/{{ $json.prNumber }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "=body",
+              "value": "={{ \"## Jira Ticket: \" + $json.jiraId + \"\\n\\n**\" + $json.summary + \"**\\n\\n---\\n*Auto-filled by Jira Automation*\" }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -672,
+        -240
+      ],
+      "id": "ee1214f7-18e8-4202-ba44-7e48c0d278fd",
+      "name": "Update PR Description",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "9TNQWtVoRUf0pxcT",
+          "name": "Github Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ticketDetails = $json;\nconst original = $('Extract from PR').first()?.json || {};\n\nreturn [{\n  jiraId: original.jiraId,\n  prNumber: original.prNumber,\n  repoName: original.repoName,\n  author: original.author,\n  eventType: original.eventType,\n  summary: ticketDetails.fields?.summary || original.commitMessage\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -880,
+        -240
+      ],
+      "id": "603e05c7-23ef-49ce-8db2-45933e8e0f55",
+      "name": "Merge PR Data"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "issueKey": "={{ $json.jiraId }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        -1072,
+        -240
+      ],
+      "id": "4c715ecf-d87c-480e-9042-c6c01bad6ea8",
+      "name": "Get Jira Ticket Details",
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "SivgZaRfqUbCDk3p",
+          "name": "Jira SW Cloud account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const original = $('Merge PR Data').first()?.json || {};\n\nreturn [{\n  jiraId: original.jiraId,\n  author: original.author,\n  eventType: original.eventType,\n  commitMessage: original.summary || '',\n  timestamp: new Date().toISOString(),\n  url: ''\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -464,
+        -240
+      ],
+      "id": "11a5904e-57fa-4591-822a-d278256b1f79",
+      "name": "Restore PR Data"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Add a comment": {
+      "main": [
+        [
+          {
+            "node": "Pick Transition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Merge Claude Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Claude Response": {
+      "main": [
+        [
+          {
+            "node": "Add a comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Jira ID?": {
+      "main": [
+        [
+          {
+            "node": "Get Recent Comments",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Route by Event": {
+      "main": [
+        [
+          {
+            "node": "Extract from Push",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract from PR",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract from Branch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from Push": {
+      "main": [
+        [
+          {
+            "node": "Has Jira ID?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from PR": {
+      "main": [
+        [
+          {
+            "node": "Get Jira Ticket Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from Branch": {
+      "main": [
+        [
+          {
+            "node": "Has Jira ID?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick Transition": {
+      "main": [
+        [
+          {
+            "node": "Has Transition?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Transition?": {
+      "main": [
+        [
+          {
+            "node": "Update an issue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Github Webhook": {
+      "main": [
+        [
+          {
+            "node": "Route by Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Comment Summarize": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "is Duplicate?": {
+      "main": [
+        [
+          {
+            "node": "Skip if Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip if Duplicate": {
+      "main": [
+        [
+          {
+            "node": "Comment Summarize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recent Comments": {
+      "main": [
+        [
+          {
+            "node": "is Duplicate?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update PR Description": {
+      "main": [
+        [
+          {
+            "node": "Restore PR Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge PR Data": {
+      "main": [
+        [
+          {
+            "node": "Update PR Description",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Jira Ticket Details": {
+      "main": [
+        [
+          {
+            "node": "Merge PR Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore PR Data": {
+      "main": [
+        [
+          {
+            "node": "Has Jira ID?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "GE3U_EuaiO6UvhkuvzFxA",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "44cb2df2-606e-450d-9e2e-aeeb6a6b5e4d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "87a1ec706580ff004c2ffd19e82325bdae3dcc21774a1b1424eb0883e415ab34"
+  },
+  "id": "51acfUetNdfCF5j5YjE42",
+  "tags": []
+}
